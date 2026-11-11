@@ -1,6 +1,6 @@
 # Releasing and publishing
 
-Steps that need the repository owner. Nothing here has been done yet.
+Steps that need the repository owner. Done for v0.1.x on 11 Nov 2026: steps 1–3, and the hacs/default PR in step 4.
 
 ## 1. Public GitHub repository
 
@@ -35,13 +35,10 @@ Steps that need the repository owner. Nothing here has been done yet.
 
 ## 3. Brand icons
 
-HACS validation (and the integration page in Home Assistant) expects icons in
-[home-assistant/brands](https://github.com/home-assistant/brands):
-
-1. Make `icon.png` (256×256) and `icon@2x.png` (512×512), plus optional `logo.png`. Use your own
-   artwork, not Hildebrand's trademark logo unless you have permission.
-2. Open a PR to `home-assistant/brands` adding `custom_integrations/glow_statistics/`.
-3. Once it is merged, remove `ignore: brands` from `.github/workflows/validate.yml`.
+Since Home Assistant 2026.3 a custom integration ships its own icon in
+`custom_components/glow_statistics/brand/` (`icon.png` 256×256, `icon@2x.png` 512×512).
+They are drawn by `tools/make_icon.py` (`uv run --with pillow python tools/make_icon.py
+custom_components/glow_statistics/brand`). The Marketplace reads them from the latest release.
 
 ## 4. HACS default repository (optional)
 

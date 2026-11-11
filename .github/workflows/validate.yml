@@ -22,6 +22,3 @@ jobs:
       - uses: hacs/action@main
         with:
           category: integration
-          # Remove "brands" once the icon is merged into home-assistant/brands,
-          # and "topics"/"description" once they are set on the GitHub repository.
-          ignore: brands

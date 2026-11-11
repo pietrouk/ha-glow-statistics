@@ -18,7 +18,7 @@ async def async_get_config_entry_diagnostics(hass: HomeAssistant, entry: GlowCon
     """Return diagnostics for a config entry."""
     coordinator = entry.runtime_data
     data = coordinator.data
-    stored = await coordinator._async_stored()  # noqa: SLF001
+    stored = await coordinator.async_stored()
     return {
         "entry": async_redact_data(
             {"title": entry.title, "unique_id": entry.unique_id, "data": dict(entry.data)}, TO_REDACT

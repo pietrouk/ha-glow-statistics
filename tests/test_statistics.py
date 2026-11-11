@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, date, datetime, timedelta
+from itertools import pairwise
 
 import pytest
 from homeassistant.components.energy.data import async_get_manager
@@ -64,9 +65,9 @@ def uk_day_total(rows: dict[datetime, float], day: date) -> float:
 
 def assert_monotonic(rows: dict[datetime, float]) -> None:
     hours = list(rows)
-    assert all(b - a == timedelta(hours=1) for a, b in zip(hours, hours[1:], strict=False)), "rows not hourly"
+    assert all(b - a == timedelta(hours=1) for a, b in pairwise(hours)), "rows not hourly"
     sums = list(rows.values())
-    assert all(b >= a for a, b in zip(sums, sums[1:], strict=False)), "sum decreased"
+    assert all(b >= a for a, b in pairwise(sums)), "sum decreased"
 
 
 async def test_first_run_backfills(recorder_mock, hass: HomeAssistant, summer_data, config_entry) -> None:

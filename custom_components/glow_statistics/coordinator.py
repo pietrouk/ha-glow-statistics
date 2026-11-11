@@ -158,7 +158,8 @@ class GlowCoordinator(DataUpdateCoordinator[GlowData]):
         """The furthest a first run looks back."""
         return timedelta(days=self.config_entry.options.get(CONF_BACKFILL_DAYS, DEFAULT_BACKFILL_DAYS))
 
-    async def _async_stored(self) -> dict[str, Any]:
+    async def async_stored(self) -> dict[str, Any]:
+        """Persisted tariff history and override fingerprints."""
         if self._stored is None:
             self._stored = await self._store.async_load() or {}
             self._stored.setdefault("tariff_history", {})
@@ -190,7 +191,7 @@ class GlowCoordinator(DataUpdateCoordinator[GlowData]):
     async def async_sync(self, force_start: datetime | None = None) -> GlowData:
         """Fetch and write all streams; ``force_start`` re-imports from that time."""
         async with self._sync_lock:
-            stored = await self._async_stored()
+            stored = await self.async_stored()
             today = dt_util.now(TARIFF_TZ).date()
             data = GlowData(last_run=dt_util.utcnow())
             for stream in self.streams:

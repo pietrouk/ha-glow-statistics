@@ -7,7 +7,10 @@ import re
 import pytest
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
-from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClientMocker
+from pytest_homeassistant_custom_component.test_util.aiohttp import (
+    AiohttpClientMocker,
+    AiohttpClientMockResponse,
+)
 
 from custom_components.glow_statistics.api import (
     GlowAuthError,
@@ -103,6 +106,7 @@ async def test_tariff_and_catchup(hass: HomeAssistant, aioclient_mock: AiohttpCl
     aioclient_mock.get(f"{API_BASE}resource/r2/tariff", status=404)
     aioclient_mock.get(f"{API_BASE}resource/r1/catchup", status=500)
     client = GlowClient(async_get_clientsession(hass), "u", "p")
+    client.retry_delays = (0, 0, 0)
     tariff = await client.get_tariff("r1")
     assert (tariff.unit_rate, tariff.standing_charge) == (24.5, 50.12)
     assert await client.get_tariff("r2") is None
@@ -115,3 +119,30 @@ def test_parse_tariff_structure_format() -> None:
     assert (tariff.unit_rate, tariff.standing_charge) == (6.1, 29.9)
     assert parse_tariff({"data": []}) is None
     assert parse_tariff({"data": [{"currentRates": {}}]}) is None
+
+
+async def test_retries_timeouts_and_server_errors(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    """A timeout or HTTP 5xx is retried; it fails only after every retry."""
+    aioclient_mock.post(f"{API_BASE}auth", json=AUTH_OK)
+    aioclient_mock.get(f"{API_BASE}virtualentity", exc=TimeoutError())
+    client = GlowClient(async_get_clientsession(hass), "u", "p")
+    client.retry_delays = (0, 0, 0)
+    with pytest.raises(GlowConnectionError, match="TimeoutError"):
+        await client.get_resources()
+    assert aioclient_mock.call_count == 1 + 4  # login + first try + 3 retries
+
+    aioclient_mock.clear_requests()
+    calls = {"n": 0}
+
+    async def flaky(method, url, data):
+        calls["n"] += 1
+        if calls["n"] < 3:
+            return AiohttpClientMockResponse(method, url, status=502)
+        return AiohttpClientMockResponse(method, url, json={"data": [[1767225600, 0.25]]})
+
+    aioclient_mock.get(re.compile(r".*/readings.*"), side_effect=flaky)
+    readings = await client.get_readings("r1", utc(2026, 1, 1), utc(2026, 1, 1, 1))
+    assert readings == {utc(2026, 1, 1): 0.25}
+    assert calls["n"] == 3

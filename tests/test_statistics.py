@@ -23,7 +23,7 @@ from pytest_homeassistant_custom_component.components.recorder.common import (
 
 from custom_components.glow_statistics.const import DOMAIN, TARIFF_TZ
 
-from .conftest import ELEC, utc
+from .conftest import ELEC, GAS, utc
 
 E_ID = "glow_statistics:electricity_consumption"
 E_COST = "glow_statistics:electricity_cost"
@@ -349,3 +349,32 @@ async def test_unload(recorder_mock, hass: HomeAssistant, summer_data, config_en
     await setup_integration(hass, config_entry)
     assert await hass.config_entries.async_unload(config_entry.entry_id)
     assert config_entry.state is ConfigEntryState.NOT_LOADED
+
+
+async def test_one_meter_failing_does_not_block_the_others(
+    hass: HomeAssistant, summer_data, config_entry
+) -> None:
+    """A timeout on gas still writes electricity; gas is backfilled on the next refresh."""
+    summer_data.failing_resources.add(GAS)
+    await setup_integration(hass, config_entry)
+    coordinator = config_entry.runtime_data
+    assert coordinator.last_update_success
+    assert list(coordinator.data.failed) == ["gas"]
+    assert await hourly(hass, E_ID)
+    assert not await hourly(hass, G_ID)
+    assert hass.states.get("sensor.glow_statistics_electricity_consumption_today").state == "5.0"
+    assert hass.states.get("sensor.glow_statistics_gas_consumption_today").state == "unavailable"
+
+    summer_data.failing_resources.clear()
+    await coordinator.async_refresh()
+    await settle(hass)
+    gas = await hourly(hass, G_ID)
+    assert next(iter(gas)) == utc(2026, 6, 1)
+    assert_monotonic(gas)
+    assert float(hass.states.get("sensor.glow_statistics_gas_consumption_today").state) == 20.0
+
+
+async def test_all_meters_failing_fails_the_update(hass: HomeAssistant, summer_data, config_entry) -> None:
+    summer_data.failing_resources.update({ELEC, GAS})
+    await setup_integration(hass, config_entry)
+    assert config_entry.runtime_data.last_update_success is False

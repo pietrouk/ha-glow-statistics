@@ -107,6 +107,8 @@ class GlowClient:
         self._token_exp: float = 0
         self.account_id: str | None = None
         self._lock = asyncio.Lock()
+        # Pauses before retrying a failed GET (timeouts, HTTP 5xx; four times as long for 429).
+        self.retry_delays: tuple[float, ...] = (5, 20, 60)
 
     async def authenticate(self) -> None:
         """Log in and keep the token."""
@@ -125,7 +127,9 @@ class GlowClient:
                     raise GlowConnectionError(f"Login failed with HTTP {resp.status}")
                 body = await resp.json(content_type=None)
         except (aiohttp.ClientError, TimeoutError) as err:
-            raise GlowConnectionError(f"Cannot reach the Glowmarkt API: {err}") from err
+            raise GlowConnectionError(
+                f"Cannot reach the Glowmarkt API ({type(err).__name__}: {err})"
+            ) from err
         if not isinstance(body, dict) or not body.get("valid") or not body.get("token"):
             raise GlowAuthError("Invalid username or password")
         self._token = body["token"]
@@ -139,8 +143,12 @@ class GlowClient:
                 await self.authenticate()
 
     async def _get(self, path: str, params: dict[str, Any] | None = None) -> Any:
+        """GET with re-login on 401 and retries on timeouts, 5xx and 429."""
         await self._ensure_token()
-        for attempt in (1, 2):
+        relogged = False
+        attempt = 0
+        while True:
+            attempt += 1
             try:
                 async with self._session.get(
                     f"{API_BASE}{path}",
@@ -152,21 +160,35 @@ class GlowClient:
                     },
                     timeout=TIMEOUT,
                 ) as resp:
-                    if resp.status == 401 and attempt == 1:
+                    if resp.status == 401 and not relogged:
                         # Token revoked or expired early: log in again once.
+                        relogged = True
                         self._token = None
                         await self._ensure_token()
+                        attempt -= 1
                         continue
                     if resp.status in (401, 403):
                         raise GlowAuthError(f"Not authorised for {path}")
                     if resp.status == 429:
-                        raise GlowRateLimitError(f"Rate limited on {path}")
-                    if resp.status != 200:
+                        error: GlowConnectionError = GlowRateLimitError(f"Rate limited on {path}")
+                    elif resp.status >= 500:
+                        error = GlowConnectionError(f"HTTP {resp.status} on {path}")
+                    elif resp.status != 200:
                         raise GlowConnectionError(f"HTTP {resp.status} on {path}")
-                    return await resp.json(content_type=None)
+                    else:
+                        return await resp.json(content_type=None)
             except (aiohttp.ClientError, TimeoutError) as err:
-                raise GlowConnectionError(f"Cannot reach the Glowmarkt API: {err}") from err
-        raise GlowConnectionError(f"Request to {path} failed")  # pragma: no cover
+                error = GlowConnectionError(
+                    f"Cannot reach the Glowmarkt API ({type(err).__name__}: {err}) on {path}"
+                )
+                error.__cause__ = err
+            if attempt > len(self.retry_delays):
+                raise error
+            delay = self.retry_delays[attempt - 1]
+            if isinstance(error, GlowRateLimitError):
+                delay *= 4
+            _LOGGER.debug("%s; retrying in %s s", error, delay)
+            await asyncio.sleep(delay)
 
     async def get_resources(self) -> list[GlowResource]:
         """All resources of all virtual entities of the account."""

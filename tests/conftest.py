@@ -43,6 +43,7 @@ class FakeGlow:
         }
         self.auth_error = False
         self.connection_error = False
+        self.failing_resources: set[str] = set()
         self.reading_calls: list[tuple[str, datetime, datetime]] = []
         self.catchups: list[str] = []
 
@@ -80,6 +81,8 @@ class FakeGlow:
         self, resource_id: str, start: datetime, end: datetime, pause: float = 0
     ) -> dict[datetime, float]:
         self._check()
+        if resource_id in self.failing_resources:
+            raise GlowConnectionError("TimeoutError")
         self.reading_calls.append((resource_id, start, end))
         return {t: v for t, v in self.slots.get(resource_id, {}).items() if start <= t < end}
 

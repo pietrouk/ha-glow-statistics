@@ -16,7 +16,7 @@ from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
 
-from .api import GlowAuthError, GlowClient, GlowError, GlowResource
+from .api import GlowAuthError, GlowClient, GlowConnectionError, GlowError, GlowResource
 from .const import (
     BACKFILL_EMPTY_WINDOWS,
     CONF_BACKFILL_DAYS,
@@ -106,6 +106,7 @@ class GlowData:
 
     streams: dict[str, StreamData] = field(default_factory=dict)
     last_run: datetime | None = None
+    failed: dict[str, str] = field(default_factory=dict)  # stream key -> error
 
 
 def build_streams(resources: list[GlowResource]) -> list[Stream]:
@@ -195,19 +196,41 @@ class GlowCoordinator(DataUpdateCoordinator[GlowData]):
             today = dt_util.now(TARIFF_TZ).date()
             data = GlowData(last_run=dt_util.utcnow())
             for stream in self.streams:
-                api_tariff = None
-                if stream.cost_id:
-                    tariff = await self.client.get_tariff(stream.resource.resource_id)
-                    if tariff is not None:
-                        api_tariff = (tariff.standing_charge, tariff.unit_rate)
-                        history = stored["tariff_history"].setdefault(stream.cost_id, [])
-                        record_api_tariff(history, today, tariff.standing_charge, tariff.unit_rate)
-                await self.client.catchup(stream.resource.resource_id)
-                result = await self._async_sync_stream(stream, stored, force_start)
-                result.api_tariff = api_tariff
-                data.streams[stream.key] = result
+                try:
+                    data.streams[stream.key] = await self._async_run_stream(
+                        stream, stored, today, force_start
+                    )
+                except GlowAuthError:
+                    raise
+                except GlowError as err:
+                    # Keep going with the other meters; this one is retried next refresh.
+                    _LOGGER.warning("Could not update %s: %s", stream.energy_id, err)
+                    data.failed[stream.key] = str(err)
+                    if self.data and stream.key in self.data.streams:
+                        data.streams[stream.key] = self.data.streams[stream.key]
+                    continue
+                # Show finished meters straight away; a first run can take many minutes.
+                self.data = data
+                self.async_update_listeners()
             await self._store.async_save(stored)
+            if self.streams and len(data.failed) == len(self.streams):
+                raise GlowConnectionError("; ".join(data.failed.values()))
             return data
+
+    async def _async_run_stream(
+        self, stream: Stream, stored: dict[str, Any], today: date, force_start: datetime | None
+    ) -> StreamData:
+        api_tariff = None
+        if stream.cost_id:
+            tariff = await self.client.get_tariff(stream.resource.resource_id)
+            if tariff is not None:
+                api_tariff = (tariff.standing_charge, tariff.unit_rate)
+                history = stored["tariff_history"].setdefault(stream.cost_id, [])
+                record_api_tariff(history, today, tariff.standing_charge, tariff.unit_rate)
+        await self.client.catchup(stream.resource.resource_id)
+        result = await self._async_sync_stream(stream, stored, force_start)
+        result.api_tariff = api_tariff
+        return result
 
     async def _async_fetch_backfill(self, stream: Stream, now: datetime) -> dict[datetime, float]:
         """Walk back in 10-day windows until data runs out or the backfill limit is reached."""
@@ -339,6 +362,8 @@ class GlowCoordinator(DataUpdateCoordinator[GlowData]):
             self.config_entry.async_start_reauth(self.hass)
             raise ConfigEntryAuthFailed(str(err)) from err
         self.async_set_updated_data(data)
+        if data.failed:
+            raise GlowConnectionError("; ".join(f"{k}: {v}" for k, v in data.failed.items()))
 
 
 __all__ = ["HOUR", "GlowConfigEntry", "GlowCoordinator", "GlowData", "Stream", "StreamData", "build_streams"]

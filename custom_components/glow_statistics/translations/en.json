@@ -86,12 +86,24 @@
   },
   "entity": {
     "sensor": {
-      "consumption_today": { "name": "Consumption today" },
-      "export_today": { "name": "Export today" },
-      "cost_today": { "name": "Cost today" },
-      "unit_rate": { "name": "Unit rate" },
-      "standing_charge": { "name": "Standing charge" },
-      "last_reading": { "name": "Latest reading" }
+      "consumption_today": {
+        "name": "Consumption today"
+      },
+      "export_today": {
+        "name": "Today"
+      },
+      "cost_today": {
+        "name": "Cost today"
+      },
+      "unit_rate": {
+        "name": "Unit rate"
+      },
+      "standing_charge": {
+        "name": "Standing charge"
+      },
+      "last_reading": {
+        "name": "Latest reading"
+      }
     }
   },
   "exceptions": {

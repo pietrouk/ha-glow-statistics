@@ -1,0 +1,15 @@
+{
+  "entity": {
+    "sensor": {
+      "consumption_today": { "default": "mdi:meter-electric" },
+      "export_today": { "default": "mdi:transmission-tower-export" },
+      "cost_today": { "default": "mdi:cash" },
+      "unit_rate": { "default": "mdi:currency-gbp" },
+      "standing_charge": { "default": "mdi:calendar-today" },
+      "last_reading": { "default": "mdi:clock-check-outline" }
+    }
+  },
+  "services": {
+    "reimport": { "service": "mdi:database-refresh" }
+  }
+}

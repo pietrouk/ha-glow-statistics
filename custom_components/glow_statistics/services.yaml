@@ -1,0 +1,7 @@
+reimport:
+  fields:
+    start_date:
+      required: true
+      example: "2026-01-01"
+      selector:
+        date:

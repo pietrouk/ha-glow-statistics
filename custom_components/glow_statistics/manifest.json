@@ -1,0 +1,15 @@
+{
+  "domain": "glow_statistics",
+  "name": "Glow Statistics",
+  "codeowners": ["@pietrouk"],
+  "config_flow": true,
+  "dependencies": ["recorder"],
+  "documentation": "https://github.com/pietrouk/ha-glow-statistics",
+  "integration_type": "service",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/pietrouk/ha-glow-statistics/issues",
+  "loggers": ["custom_components.glow_statistics"],
+  "requirements": [],
+  "single_config_entry": true,
+  "version": "0.1.0"
+}

@@ -1,0 +1,114 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Glow / Bright account",
+        "description": "Log in with the email address and password you use for the Bright app or glowmarkt.com. Statistics are imported as glow_statistics:electricity_consumption, glow_statistics:gas_consumption and their cost statistics.",
+        "data": {
+          "username": "Email address",
+          "password": "Password"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Log in to Glow again",
+        "description": "The Glowmarkt API rejected the saved password for {username}. Enter the current password.",
+        "data": {
+          "password": "Password"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "Glow rejected the email address or password.",
+      "cannot_connect": "Cannot reach the Glowmarkt API. Try again later.",
+      "no_meters": "This Glow account has no electricity or gas consumption data."
+    },
+    "abort": {
+      "already_configured": "This Glow account is already set up.",
+      "single_instance_allowed": "Glow Statistics is already set up.",
+      "reauth_successful": "Logged in again.",
+      "wrong_account": "That password belongs to a different Glow account."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Glow Statistics options",
+        "description": "Tariff overrides (prices incl. VAT; days not covered use Glow's tariff):\n{overrides}",
+        "menu_options": {
+          "settings": "Refresh interval and look-back",
+          "add_override": "Add a tariff override",
+          "remove_override": "Remove tariff overrides"
+        }
+      },
+      "settings": {
+        "title": "Refresh interval and look-back",
+        "data": {
+          "scan_interval": "Refresh interval",
+          "lookback_days": "Look-back window",
+          "backfill_days": "Backfill limit"
+        },
+        "data_description": {
+          "scan_interval": "How often to fetch readings from Glow.",
+          "lookback_days": "Each refresh rewrites this many days, so readings that reach Glow late are added to the hour they belong to.",
+          "backfill_days": "How far back the first import (or one after deleting the statistics) looks. It stops earlier when Glow has no more data."
+        }
+      },
+      "add_override": {
+        "title": "Add a tariff override",
+        "description": "Prices including VAT, used for every UK day from the start date (to the end date, if set) instead of Glow's tariff. An override without an end date lasts until the next override of the same fuel starts. Changing overrides recalculates the whole cost history.",
+        "data": {
+          "fuel": "Fuel",
+          "start": "First day",
+          "end": "Last day (optional)",
+          "standing_charge": "Standing charge",
+          "unit_rate": "Unit rate"
+        }
+      },
+      "remove_override": {
+        "title": "Remove tariff overrides",
+        "data": {
+          "remove": "Overrides to remove"
+        }
+      }
+    },
+    "error": {
+      "end_before_start": "The last day is before the first day.",
+      "duplicate_start": "This fuel already has an override starting on that day; remove it first."
+    }
+  },
+  "selector": {
+    "fuel": {
+      "options": {
+        "electricity": "Electricity",
+        "gas": "Gas"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "consumption_today": { "name": "Consumption today" },
+      "export_today": { "name": "Export today" },
+      "cost_today": { "name": "Cost today" },
+      "unit_rate": { "name": "Unit rate" },
+      "standing_charge": { "name": "Standing charge" },
+      "last_reading": { "name": "Latest reading" }
+    }
+  },
+  "exceptions": {
+    "not_loaded": {
+      "message": "Glow Statistics is not set up or not loaded."
+    }
+  },
+  "services": {
+    "reimport": {
+      "name": "Re-import",
+      "description": "Fetch all readings from a date onwards again and rewrite the statistics from there (for example after a long outage or to extend the backfill).",
+      "fields": {
+        "start_date": {
+          "name": "Start date",
+          "description": "First UK day to re-import."
+        }
+      }
+    }
+  }
+}

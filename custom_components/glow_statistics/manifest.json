@@ -1,6 +1,6 @@
 {
   "domain": "glow_statistics",
-  "name": "Glow Statistics",
+  "name": "Glow Statistics - Hildebrand for Energy Dashboard",
   "codeowners": ["@pietrouk"],
   "config_flow": true,
   "dependencies": ["recorder"],

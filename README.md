@@ -1,4 +1,4 @@
-# Glow Statistics
+# Glow Statistics - Hildebrand for Energy Dashboard
 
 A Home Assistant custom integration that imports the half-hourly readings of UK smart meters from
 [Hildebrand Glow](https://glowmarkt.com/) (the Bright app, DCC data) as **long-term statistics**,
@@ -42,7 +42,7 @@ devices are all different, so you can compare the two.
 
 1. In HACS, open the ⋮ menu → **Custom repositories**.
 2. Add `https://github.com/pietrouk/ha-glow-statistics` with type **Integration**.
-3. Search for **Glow Statistics**, download it, and restart Home Assistant.
+3. Search for **Glow Statistics - Hildebrand for Energy Dashboard**, download it, and restart Home Assistant.
 
 ### Manual
 
@@ -51,7 +51,7 @@ folder, then restart Home Assistant.
 
 ## Setup
 
-1. **Settings → Devices & services → Add integration → Glow Statistics**.
+1. **Settings → Devices & services → Add integration → Glow Statistics - Hildebrand for Energy Dashboard**.
 2. Enter the email address and password you use for the Bright app. They are stored in Home
    Assistant only and sent only to `api.glowmarkt.com`.
 3. The first import runs in the background. It walks back in 10-day steps until Glow has no more
